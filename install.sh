@@ -3,8 +3,7 @@
 set -e
 
 # --- Configuration ---
-# !!! IMPORTANT: Replace this with your own GitHub repository details !!!
-GITHUB_REPO="YOUR_USERNAME/phantom-tunnel"
+GITHUB_REPO="webwizards-team/phantom-tunnel"
 SOURCE_FILE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/phantom.go"
 
 if [ "$(id -u)" -ne 0 ]; then
