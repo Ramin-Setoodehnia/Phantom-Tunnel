@@ -15,7 +15,7 @@ import (
 	"log"
 	"math/big"
 	"net"
-	"net/http"
+	"net/http" // مطمئن شوید که این ایمپورت وجود دارد
 	"os"
 	"strings"
 	"time"
@@ -129,7 +129,6 @@ func setupClient(reader *bufio.Reader) {
 // --- Core Logic (largely unchanged, but accepts params now) ---
 
 func runServer(listenAddr, publicAddr, path, certFile, keyFile string) {
-    // ... server logic from previous response ... (see collapsed section below)
 	log.Println("[Server Mode] 🚀 Starting Ghost-Mode Server...")
 
 	var session *yamux.Session
@@ -175,14 +174,20 @@ func runServer(listenAddr, publicAddr, path, certFile, keyFile string) {
 
 
 func runClient(serverURL, localAddr string) {
-    // ... client logic from previous response ... (see collapsed section below)
 	for {
 		log.Printf("[Client Mode] ... Attempting stealth connection to %s", serverURL)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+
+		// --- تغییر اعمال شده در اینجا ---
 		wsConn, _, err := websocket.Dial(ctx, serverURL, &websocket.DialOptions{
 			Subprotocols: []string{"tunnel"},
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			HTTPClient: &http.Client{ // استفاده از HTTPClient
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			},
 		})
+		// --- پایان تغییر ---
 		cancel()
 
 		if err != nil {
