@@ -17,10 +17,9 @@
 
 این دستور را در ترمینال لینوکس خود اجرا کنید. اسکریپت بقیه کارها را انجام می‌دهد.
 
-*(فراموش نکنید که `YOUR_USERNAME/phantom-tunnel` را با آدرس مخزن خودتان جایگزین کنید)*
 
 ```bash
-bash <(curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/phantom-tunnel/main/install.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/phantom-tunnel/main/install.sh)
 ```
 > اسکریپت برای نصب برنامه در مسیر سیستمی از شما رمز عبور `sudo` را خواهد پرسید.
 
