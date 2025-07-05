@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-# jdid
+
 # تنظیم GOPROXY به direct برای جلوگیری از خطای 403 هنگام دانلود ماژول‌ها
 export GOPROXY=direct
 
@@ -65,9 +65,8 @@ cd "$TMP_DIR"
 echo "Initializing Go module and fetching dependencies..."
 # مقداردهی اولیه ماژول Go (اگر وجود نداشته باشد)
 go mod init phantom-tunnel || true
-# --- این خط را به طور کامل تغییر دهید ---
-go get nhooyr.io/websocket # بدون مشخص کردن نسخه
-# ---
+# دانلود نسخه مناسب nhooyr.io/websocket
+go get nhooyr.io/websocket
 # تمیز کردن و دانلود سایر وابستگی‌ها
 go mod tidy
 
