@@ -1,4 +1,3 @@
-// Filename: phantom.go
 package main
 
 import (
