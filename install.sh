@@ -35,7 +35,7 @@ if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
     exit 1
 fi
 
-# --- اضافه کردن بررسی و نصب git ---
+# اضافه کردن بررسی و نصب git
 if ! command -v git &> /dev/null; then
   echo "Git not found. Installing..."
   if command -v apt-get &> /dev/null; then
@@ -47,7 +47,6 @@ if ! command -v git &> /dev/null; then
     exit 1
   fi
 fi
-# --- پایان اضافه شدن بررسی و نصب git ---
 
 
 echo "Downloading the latest source code..."
@@ -66,8 +65,9 @@ cd "$TMP_DIR"
 echo "Initializing Go module and fetching dependencies..."
 # مقداردهی اولیه ماژول Go (اگر وجود نداشته باشد)
 go mod init phantom-tunnel || true
-# دانلود نسخه خاصی از nhooyr.io/websocket که با کد سازگار است
-go get nhooyr.io/websocket@v1.8.6
+# --- تغییر در اینجا: اجازه دادن به Go برای انتخاب آخرین نسخه ---
+go get nhooyr.io/websocket
+# ---
 # تمیز کردن و دانلود سایر وابستگی‌ها
 go mod tidy
 
