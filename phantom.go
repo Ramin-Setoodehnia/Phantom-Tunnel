@@ -15,7 +15,7 @@ import (
 	"log"
 	"math/big"
 	"net"
-	"net/http" // مطمئن شوید که این ایمپورت وجود دارد
+	"net/http" // این ایمپورت اضافه شده است
 	"os"
 	"strings"
 	"time"
@@ -178,10 +178,10 @@ func runClient(serverURL, localAddr string) {
 		log.Printf("[Client Mode] ... Attempting stealth connection to %s", serverURL)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
-		// --- تغییر اعمال شده در اینجا ---
+		// --- این بخش تغییر کرده است ---
 		wsConn, _, err := websocket.Dial(ctx, serverURL, &websocket.DialOptions{
 			Subprotocols: []string{"tunnel"},
-			HTTPClient: &http.Client{ // استفاده از HTTPClient
+			HTTPClient: &http.Client{ // استفاده از HTTPClient برای تنظیم TLSClientConfig
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 				},
