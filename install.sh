@@ -29,11 +29,14 @@ if command -v curl &> /dev/null; then curl -sSL -o "$TMP_DIR/phantom.go" "$SOURC
 else wget -q -O "$TMP_DIR/phantom.go" "$SOURCE_FILE_URL"; fi
 cd "$TMP_DIR"
 
-# --- تغییرات اضافه شده: مقداردهی اولیه ماژول Go و دانلود وابستگی‌ها ---
 echo "Initializing Go module and fetching dependencies..."
 go mod init phantom-tunnel || true # اگر فایل go.mod از قبل وجود دارد، خطا ندهد
+
+# --- خط جدیدی که اضافه می‌کنید ---
+go get nhooyr.io/websocket@v1.8.6 # یا v1.8.7 اگر 1.8.6 کار نکرد
+# --- پایان خط جدید ---
+
 go mod tidy
-# --- پایان تغییرات اضافه شده ---
 
 echo "Compiling the 'phantom-tunnel' application..."
 go build -ldflags="-s -w" -o phantom-tunnel phantom.go
