@@ -1,7 +1,7 @@
 #!/bin/bash
-# jdid
-set -e
 
+set -e
+# jdid
 # تنظیم GOPROXY به direct برای جلوگیری از خطای 403 هنگام دانلود ماژول‌ها
 export GOPROXY=direct
 
