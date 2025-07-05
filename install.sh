@@ -15,7 +15,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-echo "Checking for dependencies (Go, curl/wget)..."
+echo "Checking for dependencies (Go, curl/wget, git)..."
 # بررسی و نصب Go compiler
 if ! command -v go &> /dev/null; then
   echo "Go compiler not found. Installing..."
@@ -34,6 +34,21 @@ if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
     echo "Error: This script requires either curl or wget." >&2
     exit 1
 fi
+
+# --- اضافه کردن بررسی و نصب git ---
+if ! command -v git &> /dev/null; then
+  echo "Git not found. Installing..."
+  if command -v apt-get &> /dev/null; then
+    apt-get update && apt-get install -y git
+  elif command -v yum &> /dev/null; then
+    yum install -y git
+  else
+    echo "Cannot install Git automatically. Please install it manually."
+    exit 1
+  fi
+fi
+# --- پایان اضافه شدن بررسی و نصب git ---
+
 
 echo "Downloading the latest source code..."
 # ایجاد دایرکتوری موقت و تنظیم trap برای حذف آن
