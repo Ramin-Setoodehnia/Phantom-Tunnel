@@ -65,8 +65,8 @@ cd "$TMP_DIR"
 echo "Initializing Go module and fetching dependencies..."
 # مقداردهی اولیه ماژول Go (اگر وجود نداشته باشد)
 go mod init phantom-tunnel || true
-# --- تغییر در اینجا: مشخص کردن نسخه v1.8.5 ---
-go get nhooyr.io/websocket@v1.8.5
+# --- این خط را به طور کامل تغییر دهید ---
+go get nhooyr.io/websocket # بدون مشخص کردن نسخه
 # ---
 # تمیز کردن و دانلود سایر وابستگی‌ها
 go mod tidy
