@@ -21,7 +21,7 @@
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/phantom-tunnel/main/install.sh)
 ```
-> اسکریپت برای نصب برنامه در مسیر سیستمی از شما رمز عبور `sudo` را خواهد پرسید.
+> اسکریپت برای فعال ماندن بعد از بسته شدن ترمینال نیاز به دستور `tmux` خواهد داشت.
 
 ---
 
