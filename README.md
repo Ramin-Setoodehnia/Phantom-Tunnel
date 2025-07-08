@@ -73,6 +73,6 @@ bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/phantom-tunne
  
 اگر از این پروژه لذت بردید و مایلید از توسعه آن حمایت کنید، می‌توانید به آدرس زیر کمک مالی ارسال کنید:
  
-💸 **حمایت مالی ( TRX ):** `TJCanxYR3GtpMkpAzxTAmmd6Szoc2asoq7`
+💸 **حمایت مالی ( TRX - درگاه پرداخت ):** `TJCanxYR3GtpMkpAzxTAmmd6Szoc2asoq7`
 
 <a href="https://www.coffeebede.com/nitroserver"><img class="img-fluid" src="https://coffeebede.ir/DashboardTemplateV2/app-assets/images/banner/default-yellow.svg" /></a>
