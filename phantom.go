@@ -58,7 +58,7 @@ func main() {
 // --- منوی تعاملی ---
 func showInteractiveMenu() {
 	fmt.Println("=======================================")
-	fmt.Println("   👻 Phantom Tunnel (Core v3.2)     ")
+	fmt.Println("   👻 Phantom Tunnel (Core v2.0)     ")
 	fmt.Println("   Make your traffic disappear.     ")
 	fmt.Println("=======================================")
 	reader := bufio.NewReader(os.Stdin)
