@@ -22,12 +22,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/yamux"
-	"github.com/quic-go/quic-go"
 	"nhooyr.io/websocket"
 )
 
@@ -37,33 +35,20 @@ const (
 	successSignalPath = "/tmp/phantom_success.signal"
 )
 
-var bufferPool = &sync.Pool{
-	New: func() any { return make([]byte, 32*1024) },
-}
-
 // --- نقطه شروع اصلی برنامه ---
 func main() {
-	mode := flag.String("mode", "", "internal mode: websocket_server, websocket_client, quic_server, quic_client")
+	mode := flag.String("mode", "", "internal: 'server' or 'client'")
 	flag.Parse()
 
 	if *mode != "" {
 		configureLogging()
 		args := flag.Args()
-		switch *mode {
-		case "websocket_server":
-			if len(args) < 5 { log.Fatal("Internal error: Not enough arguments for websocket server") }
-			runServerWebSocket(args[0], args[1], args[2], args[3], args[4])
-		case "websocket_client":
-			if len(args) < 2 { log.Fatal("Internal error: Not enough arguments for websocket client") }
-			runClientWebSocket(args[0], args[1])
-		case "quic_server":
-			if len(args) < 3 { log.Fatal("Internal error: Not enough arguments for quic server") }
-			runServerQUIC(args[0], args[1], args[2])
-		case "quic_client":
-			if len(args) < 3 { log.Fatal("Internal error: Not enough arguments for quic client") }
-			runClientQUIC(args[0], args[1], args[2])
-		default:
-			log.Fatalf("Internal error: Unknown mode '%s'", *mode)
+		if *mode == "server" {
+			if len(args) < 5 { log.Fatal("Internal error: Not enough arguments for server mode.") }
+			runServer(args[0], args[1], args[2], args[3], args[4])
+		} else if *mode == "client" {
+			if len(args) < 2 { log.Fatal("Internal error: Not enough arguments for client mode.") }
+			runClient(args[0], args[1])
 		}
 		return
 	}
@@ -73,8 +58,8 @@ func main() {
 // --- منوی تعاملی ---
 func showInteractiveMenu() {
 	fmt.Println("=======================================")
-	fmt.Println("  👻 Phantom Tunnel v7.3 (Final Fix)  ")
-	fmt.Println("  Choose Your Weapon: WebSocket or QUIC")
+	fmt.Println("   👻 Phantom Tunnel (Core v2.0)     ")
+	fmt.Println("   Make your traffic disappear.     ")
 	fmt.Println("=======================================")
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -96,107 +81,141 @@ func showInteractiveMenu() {
 		case "4": stopAndCleanTunnel(reader)
 		case "5": uninstallSelf(reader)
 		case "6": fmt.Println("Exiting."); os.Exit(0)
-		default: fmt.Println("Invalid choice.")
+		default: fmt.Println("Invalid choice. Please try again.")
 		}
 	}
 }
 
-// --- توابع راه‌اندازی ---
+// --- توابع مدیریتی ---
 func setupServer(reader *bufio.Reader) {
-	if isTunnelRunning() { fmt.Println("A tunnel is already running. Stop it first."); return }
+	if isTunnelRunning() {
+		fmt.Println("A tunnel is already running. Stop it first with option '4'.")
+		return
+	}
 	fmt.Println("\n--- 👻 Server Setup ---")
-	fmt.Println("Choose a tunnel type:")
-	fmt.Println("  1. WebSocket (TCP): Best for bypassing firewalls.")
-	fmt.Println("  2. QUIC (UDP):      Best for low latency and unstable networks.")
-	fmt.Print("Enter choice [1-2]: ")
-	choice, _ := reader.ReadString('\n')
-	choice = strings.TrimSpace(choice)
-	if choice == "1" { setupWebSocketServer(reader) } else if choice == "2" { setupQUICServer(reader) } else { fmt.Println("Invalid choice.") }
-}
-func setupClient(reader *bufio.Reader) {
-	if isTunnelRunning() { fmt.Println("A tunnel is already running. Stop it first."); return }
-	fmt.Println("\n--- 👻 Client Setup ---")
-	fmt.Println("What type of tunnel are you connecting to?")
-	fmt.Println("  1. WebSocket (TCP)")
-	fmt.Println("  2. QUIC (UDP)")
-	fmt.Print("Enter choice [1-2]: ")
-	choice, _ := reader.ReadString('\n')
-	choice = strings.TrimSpace(choice)
-	if choice == "1" { setupWebSocketClient(reader) } else if choice == "2" { setupQUICClient(reader) } else { fmt.Println("Invalid choice.") }
-}
-
-func setupWebSocketServer(reader *bufio.Reader) {
-	fmt.Println("\n--- WebSocket Server ---")
-	listenAddr := promptForInput(reader, "Enter Tunnel Port (e.g., 443)", "443")
-	publicAddr := promptForInput(reader, "Enter Public Port for users", "8000")
-	path := promptForInput(reader, "Enter Secret URL Path", "/"+generateRandomSecret(16))
+	listenAddr := promptForInput(reader, "Enter Tunnel Port", "443")
+	publicAddr := promptForInput(reader, "Enter Public Port", "8000")
+	path := promptForInput(reader, "Enter Secret URL Path", "/"+generateRandomPath())
 	if !strings.HasPrefix(listenAddr, ":") { listenAddr = ":" + listenAddr }
 	if !strings.HasPrefix(publicAddr, ":") { publicAddr = ":" + publicAddr }
+
 	if _, err := os.Stat("server.crt"); os.IsNotExist(err) {
-		fmt.Println("Generating self-signed certificate...")
-		if err := generateCert(); err != nil { log.Fatalf("Failed to generate certificate: %v", err) }
-		fmt.Println("✅ Certificate generated.")
+		fmt.Println("SSL certificate not found. Generating a new one...")
+		if err := generateSelfSignedCert(); err != nil { log.Fatalf("Failed to generate SSL: %v", err) }
+		fmt.Println("✅ SSL certificate 'server.crt' and 'server.key' generated.")
+	} else {
+		fmt.Println("✅ Existing SSL certificate found.")
 	}
-	cmd := exec.Command(os.Args[0], "--mode", "websocket_server", listenAddr, publicAddr, path, "server.crt", "server.key")
-	startDaemon(cmd)
+	cmd := exec.Command(os.Args[0], "--mode", "server", listenAddr, publicAddr, path, "server.crt", "server.key")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Error starting server process: %v\n", err); return
+	}
+	pid := cmd.Process.Pid
+	_ = os.WriteFile(pidFilePath, []byte(strconv.Itoa(pid)), 0644)
+	fmt.Printf("\n✅ Server process started in the background (PID: %d).\n", pid)
 }
-func setupQUICServer(reader *bufio.Reader) {
-	fmt.Println("\n--- QUIC Server ---")
-	listenAddr := promptForInput(reader, "Enter Tunnel Port (UDP)", "443")
-	secret := promptForInput(reader, "Enter a strong secret password", generateRandomSecret(16))
-	localAddr := promptForInput(reader, "Forward traffic to which local address?", "localhost:8000")
-	if !strings.Contains(listenAddr, ":") { listenAddr = ":" + listenAddr }
-	cmd := exec.Command(os.Args[0], "--mode", "quic_server", listenAddr, secret, localAddr)
-	startDaemon(cmd)
-}
-func setupWebSocketClient(reader *bufio.Reader) {
-	fmt.Println("\n--- WebSocket Client ---")
+
+func setupClient(reader *bufio.Reader) {
+	if isTunnelRunning() {
+		fmt.Println("A tunnel is already running. Stop it first with option '4'."); return
+	}
+	fmt.Println("\n--- 👻 Client Setup ---")
 	serverIP := promptForInput(reader, "Enter Server IP or Hostname", "")
 	if serverIP == "" { fmt.Println("Error: Server IP cannot be empty."); return }
 	serverPort := promptForInput(reader, "Enter Server Tunnel Port", "443")
 	serverPath := promptForInput(reader, "Enter Server Secret Path", "/connect")
-	localAddr := promptForInput(reader, "Listen on which local address?", "localhost:3000")
+	localAddr := promptForInput(reader, "Enter Local Service Address", "localhost:3000")
 	serverURL := fmt.Sprintf("wss://%s:%s%s", serverIP, serverPort, serverPath)
-	cmd := exec.Command(os.Args[0], "--mode", "websocket_client", serverURL, localAddr)
-	startDaemon(cmd)
-}
-func setupQUICClient(reader *bufio.Reader) {
-	fmt.Println("\n--- QUIC Client ---")
-	serverAddr := promptForInput(reader, "Enter Server IP:Port (e.g. 1.2.3.4:443)", "")
-	if serverAddr == "" { fmt.Println("Error: Server address cannot be empty."); return }
-	secret := promptForInput(reader, "Enter the server's secret password", "")
-	localAddr := promptForInput(reader, "Listen on which local address?", "localhost:3000")
-	cmd := exec.Command(os.Args[0], "--mode", "quic_client", serverAddr, secret, localAddr)
-	startDaemon(cmd)
+	
+	cmd := exec.Command(os.Args[0], "--mode", "client", serverURL, localAddr)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Error starting client process: %v\n", err); return
+	}
+	pid := cmd.Process.Pid
+	_ = os.WriteFile(pidFilePath, []byte(strconv.Itoa(pid)), 0644)
+	fmt.Printf("\nClient process started (PID: %d). Waiting for connection confirmation...\n", pid)
+	timeout := time.After(20 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-timeout:
+			fmt.Println("❌ Could not confirm initial connection within 20 seconds."); return
+		case <-ticker.C:
+			if _, err := os.Stat(successSignalPath); err == nil {
+				os.Remove(successSignalPath)
+				fmt.Println("✅ Tunnel connection established successfully! Running in the background."); return
+			}
+		}
+	}
 }
 
-// --- هسته اصلی و منطق هر حالت ---
-func pipe(dst io.Writer, src io.Reader) {
-	buf := bufferPool.Get().([]byte)
-	defer bufferPool.Put(buf)
-	io.CopyBuffer(dst, src, buf)
+func stopAndCleanTunnel(reader *bufio.Reader) {
+	fmt.Println("\nThis will stop any running tunnel AND delete all generated files.")
+	fmt.Print("Are you sure? [y/N]: ")
+	confirm, _ := reader.ReadString('\n')
+	if strings.TrimSpace(strings.ToLower(confirm)) != "y" {
+		fmt.Println("Operation cancelled."); return
+	}
+	if pidBytes, err := os.ReadFile(pidFilePath); err == nil {
+		pid, _ := strconv.Atoi(string(pidBytes))
+		if process, err := os.FindProcess(pid); err == nil {
+			fmt.Printf("Stopping tunnel process (PID: %d)...\n", pid)
+			if err := process.Signal(syscall.SIGTERM); err == nil { fmt.Println("  - Process stopped successfully.") }
+		}
+	} else {
+		fmt.Println("No running process found, proceeding with file cleanup.")
+	}
+	fmt.Println("Cleaning up generated files...")
+	deleteFile("server.crt"); deleteFile("server.key"); deleteFile(logFilePath)
+	deleteFile(pidFilePath); deleteFile(successSignalPath)
+	fmt.Println("✅ Cleanup complete.")
 }
 
-func runServerWebSocket(listenAddr, publicAddr, path, certFile, keyFile string) {
-	log.Println("[WebSocket Server] 🚀 Starting...")
+func uninstallSelf(reader *bufio.Reader) {
+	if isTunnelRunning() { fmt.Println("A tunnel is running. Stop and clean it first."); return }
+	fmt.Println("\nWARNING: This will permanently remove the 'phantom-tunnel' command.")
+	fmt.Print("Are you sure? [y/N]: ")
+	if confirm, _ := reader.ReadString('\n'); strings.TrimSpace(strings.ToLower(confirm)) != "y" {
+		fmt.Println("Uninstall cancelled."); return
+	}
+	executablePath, err := os.Executable()
+	if err != nil { fmt.Println("Error: Could not determine executable path:", err); return }
+	deleteFile(pidFilePath); deleteFile(logFilePath); deleteFile(successSignalPath)
+	fmt.Printf("Removing executable: %s\n", executablePath)
+	if err = os.Remove(executablePath); err != nil {
+		fmt.Printf("Error: Failed to remove executable: %v\n", err); return
+	}
+	fmt.Println("✅ Phantom Tunnel has been successfully uninstalled.")
+	os.Exit(0)
+}
+
+// --- هسته اصلی و منطق تونل ---
+func runServer(listenAddr, publicAddr, path, certFile, keyFile string) {
+	log.Println("[Server Mode] 🚀 Starting process...")
 	var session *yamux.Session
 	httpServer := &http.Server{
 		Addr: listenAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != path { http.NotFound(w, r); return }
 			wsConn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{"tunnel"}})
-			if err != nil { log.Printf("[WSS] Accept failed: %v", err); return }
-			log.Println("[WSS] 🤝 Tunnel established!")
-			session, _ = yamux.Server(websocket.NetConn(context.Background(), wsConn, websocket.MessageBinary), nil)
+			if err != nil { log.Printf("[Server] Websocket accept failed: %v", err); return }
+			conn := websocket.NetConn(context.Background(), wsConn, websocket.MessageBinary)
+			log.Println("[Server] 🤝 WebSocket tunnel established!")
+			session, _ = yamux.Server(conn, nil)
 		}),
 	}
 	go func() {
-		log.Printf("[WSS] ✅ Listening for tunnels on wss://%s", listenAddr)
-		if err := httpServer.ListenAndServeTLS(certFile, keyFile); err != nil { log.Fatalf("[WSS] Server failed: %v", err) }
+		log.Printf("[Server] ✅ Listening for tunnel on wss://%s", listenAddr)
+		if err := httpServer.ListenAndServeTLS(certFile, keyFile); err != nil {
+			log.Fatalf("[Server] HTTPS server failed: %v", err)
+		}
 	}()
 	publicListener, err := net.Listen("tcp", publicAddr)
-	if err != nil { log.Fatalf("[WSS] Public listener failed on %s: %v", publicAddr, err) }
-	log.Printf("[WSS] ✅ Listening for public traffic on %s", publicAddr)
+	if err != nil { log.Fatalf("[Server] Public listener failed on %s: %v", publicAddr, err) }
+	log.Printf("[Server] ✅ Listening for public traffic on %s", publicAddr)
 	for {
 		publicConn, err := publicListener.Accept()
 		if err != nil { continue }
@@ -206,151 +225,47 @@ func runServerWebSocket(listenAddr, publicAddr, path, certFile, keyFile string) 
 			stream, err := session.OpenStream()
 			if err != nil { return }
 			defer stream.Close()
-			go pipe(stream, publicConn)
-			pipe(publicConn, stream)
+			go func() { _, _ = io.Copy(stream, publicConn) }()
+			_, _ = io.Copy(publicConn, stream)
 		}()
 	}
 }
 
-func runClientWebSocket(serverURL, localAddr string) {
+func runClient(serverURL, localAddr string) {
 	for {
-		log.Printf("[WebSocket Client] ... Connecting to %s", serverURL)
+		log.Printf("[Client] ... Attempting connection to %s", serverURL)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		wsConn, _, err := websocket.Dial(ctx, serverURL, &websocket.DialOptions{
 			Subprotocols: []string{"tunnel"},
 			HTTPClient: &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}},
 		})
 		cancel()
-		if err != nil { log.Printf("[WSS] ❌ Connection failed: %v. Retrying...", err); time.Sleep(5 * time.Second); continue }
-		log.Println("[WSS] ✅ Tunnel established!")
-		if f, err := os.Create(successSignalPath); err == nil { f.Close() }
-		localListener, err := net.Listen("tcp", localAddr)
-		if err != nil { log.Fatalf("[WSS] Failed to listen on local address %s: %v", localAddr, err) }
-		session, err := yamux.Client(websocket.NetConn(context.Background(), wsConn, websocket.MessageBinary), nil)
-		if err != nil { log.Printf("[WSS] ❌ Multiplexing failed: %v", err); continue }
-		for {
-			localConn, err := localListener.Accept()
-			if err != nil { log.Printf("[WSS] ... Session terminated: %v. Reconnecting...", err); break }
-			go func() {
-				stream, err := session.OpenStream()
-				if err != nil { localConn.Close(); return }
-				defer stream.Close()
-				defer localConn.Close()
-				go pipe(localConn, stream)
-				pipe(stream, localConn)
-			}()
+		if err != nil {
+			log.Printf("[Client] ❌ Connection failed: %v. Retrying...", err)
+			time.Sleep(5 * time.Second); continue
 		}
-	}
-}
-
-func runServerQUIC(listenAddr, secret, localAddr string) {
-	log.Println("[QUIC Server] 🚀 Starting...")
-	tlsConf, err := generateQUICConfig(secret)
-	if err != nil { log.Fatalf("[QUIC] Failed to generate config: %v", err) }
-	listener, err := quic.ListenAddr(listenAddr, tlsConf, nil)
-	if err != nil { log.Fatalf("[QUIC] Failed to start listener: %v", err) }
-	log.Printf("[QUIC] ✅ Listening for tunnels on %s (UDP)", listenAddr)
-	for {
-		quicSession, err := listener.Accept(context.Background())
-		if err != nil { log.Printf("[QUIC] Accept failed: %v", err); continue }
-		log.Println("[QUIC] 🤝 New session established!")
-		go func() {
-			for {
-				stream, err := quicSession.AcceptStream(context.Background())
-				if err != nil { log.Printf("[QUIC] Stream accept failed: %v", err); return }
-				go func() {
-					defer stream.Close()
-					localConn, err := net.Dial("tcp", localAddr)
-					if err != nil { log.Printf("[QUIC] Failed to dial local service: %v", err); return }
-					defer localConn.Close()
-					go pipe(localConn, stream)
-					pipe(stream, localConn)
-				}()
-			}
-		}()
-	}
-}
-
-func runClientQUIC(serverAddr, secret, localAddr string) {
-	tlsConf := &tls.Config{ InsecureSkipVerify: true, NextProtos: []string{secret} }
-	for {
-		log.Printf("[QUIC Client] ... Connecting to %s", serverAddr)
-		quicSession, err := quic.DialAddr(context.Background(), serverAddr, tlsConf, nil)
-		if err != nil { log.Printf("[QUIC] ❌ Connection failed: %v. Retrying...", err); time.Sleep(5 * time.Second); continue }
-		log.Println("[QUIC] ✅ Session established!")
+		log.Println("[Client] ✅ Tunnel connection established!")
 		if f, err := os.Create(successSignalPath); err == nil { f.Close() }
-		localListener, err := net.Listen("tcp", localAddr)
-		if err != nil { log.Fatalf("[QUIC] Failed to listen on local address %s: %v", localAddr, err) }
-		log.Printf("[QUIC] ✅ Ready to accept local traffic on %s", localAddr)
+		session, err := yamux.Client(websocket.NetConn(context.Background(), wsConn, websocket.MessageBinary), nil)
+		if err != nil { log.Printf("[Client] ❌ Multiplexing failed: %v", err); continue }
 		for {
-			localConn, err := localListener.Accept()
-			if err != nil { log.Printf("[QUIC] ... Session terminated: %v. Reconnecting...", err); quicSession.CloseWithError(0, ""); break }
+			stream, err := session.AcceptStream()
+			if err != nil {
+				log.Printf("[Client] ... Session terminated: %v. Reconnecting...", err); break
+			}
 			go func() {
-				stream, err := quicSession.OpenStreamSync(context.Background())
-				if err != nil { log.Printf("[QUIC] Failed to open stream: %v", err); localConn.Close(); return }
 				defer stream.Close()
+				localConn, err := net.Dial("tcp", localAddr)
+				if err != nil { return }
 				defer localConn.Close()
-				go pipe(stream, localConn)
-				pipe(localConn, stream)
+				go func() { _, _ = io.Copy(localConn, stream) }()
+				_, _ = io.Copy(stream, localConn)
 			}()
 		}
 	}
 }
 
 // --- توابع کمکی ---
-func startDaemon(cmd *exec.Command) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if err := cmd.Start(); err != nil { fmt.Printf("Error starting process: %v\n", err); return }
-	pid := cmd.Process.Pid
-	_ = os.WriteFile(pidFilePath, []byte(strconv.Itoa(pid)), 0644)
-	fmt.Printf("\n✅ Process started in the background (PID: %d).\n", pid)
-	if strings.Contains(cmd.Args[2], "client") {
-		fmt.Println("Waiting for connection confirmation...")
-		timeout := time.After(20 * time.Second)
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-timeout: fmt.Println("❌ Connection timed out."); return
-			case <-ticker.C:
-				if _, err := os.Stat(successSignalPath); err == nil {
-					os.Remove(successSignalPath)
-					fmt.Println("✅ Tunnel established successfully!"); return
-				}
-			}
-		}
-	}
-}
-func stopAndCleanTunnel(reader *bufio.Reader) {
-	fmt.Println("\nThis will stop any running tunnel AND delete all generated files.")
-	fmt.Print("Are you sure? [y/N]: ")
-	confirm, _ := reader.ReadString('\n')
-	if strings.TrimSpace(strings.ToLower(confirm)) != "y" { fmt.Println("Operation cancelled."); return }
-	if pidBytes, err := os.ReadFile(pidFilePath); err == nil {
-		pid, _ := strconv.Atoi(string(pidBytes))
-		if process, err := os.FindProcess(pid); err == nil {
-			fmt.Printf("Stopping tunnel process (PID: %d)...\n", pid)
-			if err := process.Signal(syscall.SIGTERM); err == nil { fmt.Println("  - Process stopped successfully.") }
-		}
-	} else { fmt.Println("No running process found.") }
-	fmt.Println("Cleaning up generated files...")
-	deleteFile("server.crt"); deleteFile("server.key"); deleteFile(logFilePath)
-	deleteFile(pidFilePath); deleteFile(successSignalPath)
-	fmt.Println("✅ Cleanup complete.")
-}
-func uninstallSelf(reader *bufio.Reader) {
-	if isTunnelRunning() { fmt.Println("A tunnel is running. Stop and clean it first."); return }
-	fmt.Println("\nWARNING: This will permanently remove the 'phantom-tunnel' command.")
-	fmt.Print("Are you sure? [y/N]: ")
-	if confirm, _ := reader.ReadString('\n'); strings.TrimSpace(strings.ToLower(confirm)) != "y" { fmt.Println("Uninstall cancelled."); return }
-	executablePath, err := os.Executable()
-	if err != nil { fmt.Println("Error: Could not determine executable path:", err); return }
-	deleteFile(pidFilePath); deleteFile(logFilePath); deleteFile(successSignalPath)
-	fmt.Printf("Removing executable: %s\n", executablePath)
-	if err = os.Remove(executablePath); err != nil { fmt.Printf("Error: Failed to remove executable: %v\n", err); return }
-	fmt.Println("✅ Phantom Tunnel has been successfully uninstalled.")
-	os.Exit(0)
-}
 func isTunnelRunning() bool {
 	pidBytes, err := os.ReadFile(pidFilePath); if err != nil { return false }
 	pid, _ := strconv.Atoi(string(pidBytes)); process, err := os.FindProcess(pid)
@@ -370,7 +285,8 @@ func monitorLogs() {
 }
 func configureLogging() {
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil { log.Fatalf("Failed to open log file: %v", err) }; log.SetOutput(logFile)
+	if err != nil { log.Fatalf("Failed to open log file: %v", err) }
+	log.SetOutput(logFile)
 }
 func promptForInput(reader *bufio.Reader, promptText, defaultValue string) string {
 	fmt.Printf("%s [%s]: ", promptText, defaultValue)
@@ -380,9 +296,11 @@ func promptForInput(reader *bufio.Reader, promptText, defaultValue string) strin
 func deleteFile(filePath string) {
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		fmt.Printf("  - Error deleting %s: %v\n", filePath, err)
-	} else if err == nil { fmt.Printf("  - Deleted: %s\n", filePath) }
+	} else if err == nil {
+		fmt.Printf("  - Deleted: %s\n", filePath)
+	}
 }
-func generateCert() error {
+func generateSelfSignedCert() error {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048); if err != nil { return err }
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1), Subject: pkix.Name{Organization: []string{"Phantom Tunnel"}},
@@ -398,19 +316,7 @@ func generateCert() error {
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	return nil
 }
-func generateQUICConfig(secret string) (*tls.Config, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil { return nil, err }
-	template := x509.Certificate{SerialNumber: big.NewInt(1)}
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
-	if err != nil { return nil, err }
-	return &tls.Config{
-		Certificates: []tls.Certificate{{Certificate: [][]byte{certDER}, PrivateKey: key}},
-		NextProtos:   []string{secret},
-	}, nil
-}
-func generateRandomSecret(length int) string {
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil { return "default-secret" }
+func generateRandomPath() string {
+	bytes := make([]byte, 8); if _, err := rand.Read(bytes); err != nil { return "secret-path" }
 	return hex.EncodeToString(bytes)
 }
