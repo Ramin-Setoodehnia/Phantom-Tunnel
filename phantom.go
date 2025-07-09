@@ -251,7 +251,6 @@ func runServerQUIC(listenAddr, secret, localAddr string) {
 	if err != nil { log.Fatalf("[QUIC] Failed to start listener: %v", err) }
 	log.Printf("[QUIC] ✅ Listening for tunnels on %s (UDP)", listenAddr)
 	for {
-		// اصلاح شده: نام متغیر conn به quicSession تغییر یافت
 		quicSession, err := listener.Accept(context.Background())
 		if err != nil { log.Printf("[QUIC] Accept failed: %v", err); continue }
 		log.Println("[QUIC] 🤝 New session established!")
@@ -276,7 +275,6 @@ func runClientQUIC(serverAddr, secret, localAddr string) {
 	tlsConf := &tls.Config{ InsecureSkipVerify: true, NextProtos: []string{secret} }
 	for {
 		log.Printf("[QUIC Client] ... Connecting to %s", serverAddr)
-		// اصلاح شده: نام متغیر conn به quicSession تغییر یافت
 		quicSession, err := quic.DialAddr(context.Background(), serverAddr, tlsConf, nil)
 		if err != nil { log.Printf("[QUIC] ❌ Connection failed: %v. Retrying...", err); time.Sleep(5 * time.Second); continue }
 		log.Println("[QUIC] ✅ Session established!")
