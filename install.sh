@@ -1,90 +1,103 @@
 #!/bin/bash
 
+# این اسکریپت با مشاهده هرگونه خطا، اجرا را متوقف می‌کند
 set -e
 
-# تنظیم GOPROXY به direct برای جلوگیری از خطای 403 هنگام دانلود ماژول‌ها
-export GOPROXY=direct
-
-# --- Configuration ---
+# --- پیکربندی ---
 GITHUB_REPO="webwizards-team/phantom-tunnel"
-SOURCE_FILE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/phantom.go"
+INSTALL_PATH="/usr/local/bin"
+EXECUTABLE_NAME="phantom-tunnel"
 
-# بررسی اینکه اسکریپت با دسترسی روت اجرا شده است
+# --- توابع کمکی برای خوانایی بهتر ---
+print_info() {
+    echo -e "\e[34m[INFO]\e[0m $1"
+}
+
+print_success() {
+    echo -e "\e[32m[SUCCESS]\e[0m $1"
+}
+
+print_error() {
+    echo -e "\e[31m[ERROR]\e[0m $1" >&2
+}
+
+# --- شروع اسکریپت ---
+print_info "Starting Phantom Tunnel Installation..."
+
+# ۱. بررسی دسترسی روت
 if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root. Please use sudo." >&2
+  print_error "This script must be run as root. Please use 'sudo'."
   exit 1
 fi
 
-echo "Checking for dependencies (Go, curl/wget, git)..."
-# بررسی و نصب Go compiler
-if ! command -v go &> /dev/null; then
-  echo "Go compiler not found. Installing..."
-  if command -v apt-get &> /dev/null; then
-    apt-get update && apt-get install -y golang-go
-  elif command -v yum &> /dev/null; then
-    yum install -y golang
-  else
-    echo "Cannot install Go automatically. Please install it manually."
-    exit 1
-  fi
-fi
-
-# بررسی وجود curl یا wget
-if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
-    echo "Error: This script requires either curl or wget." >&2
-    exit 1
-fi
-
-# اضافه کردن بررسی و نصب git
-if ! command -v git &> /dev/null; then
-  echo "Git not found. Installing..."
-  if command -v apt-get &> /dev/null; then
-    apt-get update && apt-get install -y git
-  elif command -v yum &> /dev/null; then
-    yum install -y git
-  else
-    echo "Cannot install Git automatically. Please install it manually."
-    exit 1
-  fi
-fi
-
-
-echo "Downloading the latest source code..."
-# ایجاد دایرکتوری موقت و تنظیم trap برای حذف آن
-TMP_DIR=$(mktemp -d)
-trap 'rm -rf -- "$TMP_DIR"' EXIT
-# دانلود فایل phantom.go به دایرکتوری موقت
-if command -v curl &> /dev/null; then
-  curl -sSL -o "$TMP_DIR/phantom.go" "$SOURCE_FILE_URL"
+# ۲. بررسی و نصب وابستگی‌های اصلی (Go, Git, Curl)
+print_info "Checking for core dependencies (Go, Git, curl)..."
+PACKAGE_MANAGER=""
+if command -v apt-get &> /dev/null; then
+  PACKAGE_MANAGER="apt-get"
+elif command -v yum &> /dev/null; then
+  PACKAGE_MANAGER="yum"
 else
-  wget -q -O "$TMP_DIR/phantom.go" "$SOURCE_FILE_URL"
+  print_error "Unsupported package manager. Please install dependencies manually."
+  exit 1
 fi
-# تغییر دایرکتوری به دایرکتوری موقت
+
+# نصب Go
+if ! command -v go &> /dev/null; then
+  print_info "Go compiler not found. Installing..."
+  if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
+    apt-get update && apt-get install -y golang-go
+  else
+    yum install -y golang
+  fi
+fi
+
+# نصب Git
+if ! command -v git &> /dev/null; then
+  print_info "Git not found. Installing..."
+  if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
+    apt-get install -y git
+  else
+    yum install -y git
+  fi
+fi
+
+# نصب Curl
+if ! command -v curl &> /dev/null; then
+  print_info "curl not found. Installing..."
+  if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
+    apt-get install -y curl
+  else
+    yum install -y curl
+  fi
+fi
+
+# ۳. کامپایل کردن برنامه اصلی از سورس
+print_info "Downloading and compiling the Phantom Tunnel application..."
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf -- "$TMP_DIR"' EXIT # اطمینان از پاک شدن دایرکتوری موقت در انتها
 cd "$TMP_DIR"
 
-echo "Initializing Go module and fetching dependencies..."
-# مقداردهی اولیه ماژول Go (اگر وجود نداشته باشد)
-go mod init phantom-tunnel || true
-# دانلود نسخه مناسب nhooyr.io/websocket
-go get nhooyr.io/websocket
-# تمیز کردن و دانلود سایر وابستگی‌ها
-go mod tidy
+SOURCE_FILE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/phantom.go"
+curl -sSL -o "phantom.go" "$SOURCE_FILE_URL"
 
-echo "Compiling the 'phantom-tunnel' application..."
-# کامپایل برنامه
-go build -ldflags="-s -w" -o phantom-tunnel phantom.go
+export GOPROXY=direct # جلوگیری از خطای 403 در برخی سرورها
+go mod init phantom-tunnel &>/dev/null || true
+go get nhooyr.io/websocket &>/dev/null
+go get github.com/hashicorp/yamux &>/dev/null
+go mod tidy &>/dev/null
 
-INSTALL_PATH="/usr/local/bin"
-echo "Installing 'phantom-tunnel' to $INSTALL_PATH..."
-# انتقال فایل اجرایی به مسیر نصب
-mv phantom-tunnel "$INSTALL_PATH/"
-# اعطای مجوز اجرایی
-chmod +x "$INSTALL_PATH/phantom-tunnel"
+go build -ldflags="-s -w" -o "$EXECUTABLE_NAME" phantom.go
+mv "$EXECUTABLE_NAME" "$INSTALL_PATH/"
+chmod +x "$INSTALL_PATH/$EXECUTABLE_NAME"
+print_success "Phantom Tunnel application compiled and installed."
 
+# --- پایان ---
 echo ""
-echo "✅ Phantom Tunnel has been installed successfully!"
-echo ""
-echo "Just run 'phantom-tunnel' anywhere on your system to start the interactive setup."
-echo ""
+print_success "Installation is complete!"
+echo "--------------------------------------------------"
+echo "To run the tunnel, simply type this command anywhere:"
+echo "  $EXECUTABLE_NAME"
+echo "--------------------------------------------------"
 
 exit 0
