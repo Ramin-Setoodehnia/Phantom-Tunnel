@@ -21,8 +21,6 @@
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/phantom-tunnel/main/install.sh)
 ```
-> اسکریپت برای فعال ماندن بعد از بسته شدن ترمینال نیاز به دستور `tmux` خواهد داشت.
-
 ---
 
 ## نحوه استفاده
