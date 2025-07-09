@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# این اسکریپت با مشاهده هرگونه خطا، اجرا را متوقف می‌کند
 set -e
 
 # --- پیکربندی ---
@@ -22,32 +21,72 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# ۲. نصب وابستگی‌های اصلی (بدون تغییر)
-print_info "Checking for core dependencies (Go, Git, curl)..."
-PACKAGE_MANAGER=""
-if command -v apt-get &> /dev/null; then PACKAGE_MANAGER="apt-get"; elif command -v yum &> /dev/null; then PACKAGE_MANAGER="yum"; else print_error "Unsupported package manager."; exit 1; fi
-if ! command -v go &> /dev/null; then print_info "Go not found. Installing..."; if [ "$PACKAGE_MANAGER" = "apt-get" ]; then apt-get update && apt-get install -y golang-go; else yum install -y golang; fi; fi
-if ! command -v git &> /dev/null; then print_info "Git not found. Installing..."; if [ "$PACKAGE_MANAGER" = "apt-get" ]; then apt-get install -y git; else yum install -y git; fi; fi
-if ! command -v curl &> /dev/null; then print_info "curl not found. Installing..."; if [ "$PACKAGE_MANAGER" = "apt-get" ]; then apt-get install -y curl; else yum install -y curl; fi; fi
+# ۲. نصب وابستگی‌های پایه (Git, Curl)
+print_info "Checking for base dependencies (Git, curl)..."
+if ! command -v apt-get &> /dev/null; then
+  print_error "This script currently supports Debian-based systems (apt) only."
+  exit 1
+fi
+apt-get update
+apt-get install -y git curl
 
-# ۳. کامپایل برنامه اصلی (بدون تغییر)
+# ۳. اصلاح شده: نصب/آپدیت Go به آخرین نسخه پایدار
+GO_VERSION="1.22.5" # می‌توانید این نسخه را در آینده آپدیت کنید
+ARCH=$(dpkg --print-architecture)
+GO_TARBALL="go${GO_VERSION}.linux-${ARCH}.tar.gz"
+GO_URL="https://go.dev/dl/${GO_TARBALL}"
+GO_INSTALL_DIR="/usr/local"
+
+print_info "Checking Go version..."
+if ! command -v go &> /dev/null || [[ $(go version | awk '{print $3}') != "go${GO_VERSION}" ]]; then
+    print_info "Go v${GO_VERSION} not found. Installing/Updating..."
+    
+    # دانلود Go
+    if ! curl -sSL -o "/tmp/${GO_TARBALL}" "$GO_URL"; then
+        print_error "Failed to download Go tarball. Please check your network connection."
+        exit 1
+    fi
+    
+    # حذف نسخه قدیمی (اگر وجود داشته باشد) و نصب نسخه جدید
+    rm -rf "${GO_INSTALL_DIR}/go"
+    tar -C "$GO_INSTALL_DIR" -xzf "/tmp/${GO_TARBALL}"
+    rm "/tmp/${GO_TARBALL}"
+    
+    # اطمینان از اینکه Go در PATH قرار دارد
+    if ! grep -q "${GO_INSTALL_DIR}/go/bin" /etc/profile; then
+        echo "export PATH=\$PATH:${GO_INSTALL_DIR}/go/bin" >> /etc/profile
+    fi
+    # برای استفاده در همین session
+    export PATH=$PATH:${GO_INSTALL_DIR}/go/bin
+
+    print_success "Go v${GO_VERSION} installed successfully."
+else
+    print_info "Correct Go version is already installed."
+fi
+
+
+# ۴. کامپایل برنامه اصلی
 print_info "Downloading and compiling the Phantom Tunnel application..."
 TMP_DIR=$(mktemp -d); trap 'rm -rf -- "$TMP_DIR"' EXIT; cd "$TMP_DIR"
 SOURCE_FILE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/phantom.go"
 curl -sSL -o "phantom.go" "$SOURCE_FILE_URL"
-export GOPROXY=direct; go mod init phantom-tunnel &>/dev/null || true
-go get nhooyr.io/websocket &>/dev/null; go get github.com/hashicorp/yamux &>/dev/null; go mod tidy &>/dev/null
+
+export GOPROXY=direct
+# با نسخه جدید Go، این دستورات بسیار سریع‌تر و مطمئن‌تر اجرا می‌شوند
+go mod init phantom-tunnel &>/dev/null || true
+go get github.com/quic-go/quic-go@v0.45.1 # قفل کردن روی یک نسخه سازگار
+go mod tidy
+
 go build -ldflags="-s -w" -o "$EXECUTABLE_NAME" phantom.go
-mv "$EXECUTABLE_NAME" "$INSTALL_PATH/"; chmod +x "$INSTALL_PATH/$EXECUTABLE_NAME"
+mv "$EXECUTABLE_NAME" "$INSTALL_PATH/"
+chmod +x "$INSTALL_PATH/$EXECUTABLE_NAME"
 print_success "Phantom Tunnel application compiled and installed."
 
-# ۴. جدید: بهینه‌سازی سیستم‌عامل برای عملکرد بالا
+# ۵. بهینه‌سازی سیستم‌عامل برای عملکرد بالا
 print_info "Optimizing system for high concurrency..."
 LIMITS_CONF="/etc/security/limits.conf"
-# بررسی اینکه آیا تنظیمات قبلاً اضافه شده‌اند یا خیر
 if ! grep -q "phantom-tunnel-optimizations" "$LIMITS_CONF"; then
     print_info "Increasing file descriptor limits..."
-    # اضافه کردن تنظیمات به انتهای فایل
     cat >> "$LIMITS_CONF" <<EOF
 
 # BEGIN: phantom-tunnel-optimizations
@@ -64,8 +103,9 @@ fi
 echo ""
 print_success "Installation and optimization is complete!"
 echo "--------------------------------------------------"
-echo "To apply new system limits, please log out and log back in, or reboot the server."
-echo "Then, to run the tunnel, simply type this command anywhere:"
+echo "IMPORTANT: To apply new system limits and PATH changes, please log out and log back in, or run 'source /etc/profile'."
+echo ""
+echo "After that, to run the tunnel, simply type this command anywhere:"
 echo "  $EXECUTABLE_NAME"
 echo "--------------------------------------------------"
 
