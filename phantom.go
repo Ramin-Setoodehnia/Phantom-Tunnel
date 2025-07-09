@@ -15,8 +15,8 @@ import (
 	"io"
 	"log"
 	"math/big"
-	"net" // اصلاح شده: ایمپورت اضافه شد
-	"net/http" // اصلاح شده: ایمپورت اضافه شد
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
@@ -43,10 +43,8 @@ var bufferPool = &sync.Pool{
 
 // --- نقطه شروع اصلی برنامه ---
 func main() {
-	// اصلاح شده: ترتیب mode و parse برای جلوگیری از خطا
 	mode := flag.String("mode", "", "internal mode: websocket_server, websocket_client, quic_server, quic_client")
 	flag.Parse()
-
 	if *mode != "" {
 		configureLogging()
 		args := flag.Args()
@@ -58,8 +56,8 @@ func main() {
 			if len(args) < 2 { log.Fatal("Internal error: Not enough arguments for websocket client") }
 			runClientWebSocket(args[0], args[1])
 		case "quic_server":
-			if len(args) < 2 { log.Fatal("Internal error: Not enough arguments for quic server") }
-			runServerQUIC(args[0], args[1])
+			if len(args) < 3 { log.Fatal("Internal error: Not enough arguments for quic server") }
+			runServerQUIC(args[0], args[1], args[2])
 		case "quic_client":
 			if len(args) < 3 { log.Fatal("Internal error: Not enough arguments for quic client") }
 			runClientQUIC(args[0], args[1], args[2])
@@ -74,7 +72,7 @@ func main() {
 // --- منوی تعاملی ---
 func showInteractiveMenu() {
 	fmt.Println("=======================================")
-	fmt.Println("  👻 Phantom Tunnel v7.1 (Final)     ")
+	fmt.Println("  👻 Phantom Tunnel v7.2 (Stable)    ")
 	fmt.Println("  Choose Your Weapon: WebSocket or QUIC")
 	fmt.Println("=======================================")
 	reader := bufio.NewReader(os.Stdin)
@@ -112,16 +110,8 @@ func setupServer(reader *bufio.Reader) {
 	fmt.Print("Enter choice [1-2]: ")
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
-
-	if choice == "1" {
-		setupWebSocketServer(reader)
-	} else if choice == "2" {
-		setupQUICServer(reader)
-	} else {
-		fmt.Println("Invalid choice.")
-	}
+	if choice == "1" { setupWebSocketServer(reader) } else if choice == "2" { setupQUICServer(reader) } else { fmt.Println("Invalid choice.") }
 }
-
 func setupClient(reader *bufio.Reader) {
 	if isTunnelRunning() { fmt.Println("A tunnel is already running. Stop it first."); return }
 	fmt.Println("\n--- 👻 Client Setup ---")
@@ -131,14 +121,7 @@ func setupClient(reader *bufio.Reader) {
 	fmt.Print("Enter choice [1-2]: ")
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
-
-	if choice == "1" {
-		setupWebSocketClient(reader)
-	} else if choice == "2" {
-		setupQUICClient(reader)
-	} else {
-		fmt.Println("Invalid choice.")
-	}
+	if choice == "1" { setupWebSocketClient(reader) } else if choice == "2" { setupQUICClient(reader) } else { fmt.Println("Invalid choice.") }
 }
 
 func setupWebSocketServer(reader *bufio.Reader) {
@@ -156,7 +139,6 @@ func setupWebSocketServer(reader *bufio.Reader) {
 	cmd := exec.Command(os.Args[0], "--mode", "websocket_server", listenAddr, publicAddr, path, "server.crt", "server.key")
 	startDaemon(cmd)
 }
-
 func setupQUICServer(reader *bufio.Reader) {
 	fmt.Println("\n--- QUIC Server ---")
 	listenAddr := promptForInput(reader, "Enter Tunnel Port (UDP)", "443")
@@ -166,7 +148,6 @@ func setupQUICServer(reader *bufio.Reader) {
 	cmd := exec.Command(os.Args[0], "--mode", "quic_server", listenAddr, secret, localAddr)
 	startDaemon(cmd)
 }
-
 func setupWebSocketClient(reader *bufio.Reader) {
 	fmt.Println("\n--- WebSocket Client ---")
 	serverIP := promptForInput(reader, "Enter Server IP or Hostname", "")
@@ -178,7 +159,6 @@ func setupWebSocketClient(reader *bufio.Reader) {
 	cmd := exec.Command(os.Args[0], "--mode", "websocket_client", serverURL, localAddr)
 	startDaemon(cmd)
 }
-
 func setupQUICClient(reader *bufio.Reader) {
 	fmt.Println("\n--- QUIC Client ---")
 	serverAddr := promptForInput(reader, "Enter Server IP:Port (e.g. 1.2.3.4:443)", "")
@@ -188,7 +168,6 @@ func setupQUICClient(reader *bufio.Reader) {
 	cmd := exec.Command(os.Args[0], "--mode", "quic_client", serverAddr, secret, localAddr)
 	startDaemon(cmd)
 }
-
 
 // --- هسته اصلی و منطق هر حالت ---
 func pipe(dst io.Writer, src io.Reader) {
@@ -269,7 +248,8 @@ func runServerQUIC(listenAddr, secret, localAddr string) {
 	log.Println("[QUIC Server] 🚀 Starting...")
 	tlsConf, err := generateQUICConfig(secret)
 	if err != nil { log.Fatalf("[QUIC] Failed to generate config: %v", err) }
-	listener, err := quic.Listen(context.Background(), listenAddr, tlsConf, nil)
+	// اصلاح شده: استفاده از quic.ListenAddr به جای quic.Listen
+	listener, err := quic.ListenAddr(listenAddr, tlsConf, nil)
 	if err != nil { log.Fatalf("[QUIC] Failed to start listener: %v", err) }
 	log.Printf("[QUIC] ✅ Listening for tunnels on %s (UDP)", listenAddr)
 	for {
@@ -321,7 +301,6 @@ func runClientQUIC(serverAddr, secret, localAddr string) {
 	}
 }
 
-
 // --- توابع کمکی ---
 func startDaemon(cmd *exec.Command) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -329,7 +308,6 @@ func startDaemon(cmd *exec.Command) {
 	pid := cmd.Process.Pid
 	_ = os.WriteFile(pidFilePath, []byte(strconv.Itoa(pid)), 0644)
 	fmt.Printf("\n✅ Process started in the background (PID: %d).\n", pid)
-	// فقط برای کلاینت منتظر تایید اتصال باش
 	if strings.Contains(cmd.Args[2], "client") {
 		fmt.Println("Waiting for connection confirmation...")
 		timeout := time.After(20 * time.Second)
