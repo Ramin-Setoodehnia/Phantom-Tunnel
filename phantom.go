@@ -45,6 +45,7 @@ var bufferPool = &sync.Pool{
 func main() {
 	mode := flag.String("mode", "", "internal mode: websocket_server, websocket_client, quic_server, quic_client")
 	flag.Parse()
+
 	if *mode != "" {
 		configureLogging()
 		args := flag.Args()
@@ -248,7 +249,6 @@ func runServerQUIC(listenAddr, secret, localAddr string) {
 	log.Println("[QUIC Server] 🚀 Starting...")
 	tlsConf, err := generateQUICConfig(secret)
 	if err != nil { log.Fatalf("[QUIC] Failed to generate config: %v", err) }
-	// اصلاح شده: استفاده از quic.ListenAddr به جای quic.Listen
 	listener, err := quic.ListenAddr(listenAddr, tlsConf, nil)
 	if err != nil { log.Fatalf("[QUIC] Failed to start listener: %v", err) }
 	log.Printf("[QUIC] ✅ Listening for tunnels on %s (UDP)", listenAddr)
@@ -300,6 +300,7 @@ func runClientQUIC(serverAddr, secret, localAddr string) {
 		}
 	}
 }
+
 
 // --- توابع کمکی ---
 func startDaemon(cmd *exec.Command) {
