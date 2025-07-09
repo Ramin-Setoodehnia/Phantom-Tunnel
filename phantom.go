@@ -73,7 +73,7 @@ func main() {
 // --- منوی تعاملی ---
 func showInteractiveMenu() {
 	fmt.Println("=======================================")
-	fmt.Println("  👻 Phantom Tunnel v7.2 (Stable)    ")
+	fmt.Println("  👻 Phantom Tunnel v7.3 (Final Fix)  ")
 	fmt.Println("  Choose Your Weapon: WebSocket or QUIC")
 	fmt.Println("=======================================")
 	reader := bufio.NewReader(os.Stdin)
@@ -224,10 +224,8 @@ func runClientWebSocket(serverURL, localAddr string) {
 		if err != nil { log.Printf("[WSS] ❌ Connection failed: %v. Retrying...", err); time.Sleep(5 * time.Second); continue }
 		log.Println("[WSS] ✅ Tunnel established!")
 		if f, err := os.Create(successSignalPath); err == nil { f.Close() }
-		
 		localListener, err := net.Listen("tcp", localAddr)
 		if err != nil { log.Fatalf("[WSS] Failed to listen on local address %s: %v", localAddr, err) }
-		
 		session, err := yamux.Client(websocket.NetConn(context.Background(), wsConn, websocket.MessageBinary), nil)
 		if err != nil { log.Printf("[WSS] ❌ Multiplexing failed: %v", err); continue }
 		for {
@@ -253,12 +251,13 @@ func runServerQUIC(listenAddr, secret, localAddr string) {
 	if err != nil { log.Fatalf("[QUIC] Failed to start listener: %v", err) }
 	log.Printf("[QUIC] ✅ Listening for tunnels on %s (UDP)", listenAddr)
 	for {
-		conn, err := listener.Accept(context.Background())
+		// اصلاح شده: نام متغیر conn به quicSession تغییر یافت
+		quicSession, err := listener.Accept(context.Background())
 		if err != nil { log.Printf("[QUIC] Accept failed: %v", err); continue }
 		log.Println("[QUIC] 🤝 New session established!")
 		go func() {
 			for {
-				stream, err := conn.AcceptStream(context.Background())
+				stream, err := quicSession.AcceptStream(context.Background())
 				if err != nil { log.Printf("[QUIC] Stream accept failed: %v", err); return }
 				go func() {
 					defer stream.Close()
@@ -277,20 +276,19 @@ func runClientQUIC(serverAddr, secret, localAddr string) {
 	tlsConf := &tls.Config{ InsecureSkipVerify: true, NextProtos: []string{secret} }
 	for {
 		log.Printf("[QUIC Client] ... Connecting to %s", serverAddr)
-		conn, err := quic.DialAddr(context.Background(), serverAddr, tlsConf, nil)
+		// اصلاح شده: نام متغیر conn به quicSession تغییر یافت
+		quicSession, err := quic.DialAddr(context.Background(), serverAddr, tlsConf, nil)
 		if err != nil { log.Printf("[QUIC] ❌ Connection failed: %v. Retrying...", err); time.Sleep(5 * time.Second); continue }
 		log.Println("[QUIC] ✅ Session established!")
 		if f, err := os.Create(successSignalPath); err == nil { f.Close() }
-		
 		localListener, err := net.Listen("tcp", localAddr)
 		if err != nil { log.Fatalf("[QUIC] Failed to listen on local address %s: %v", localAddr, err) }
 		log.Printf("[QUIC] ✅ Ready to accept local traffic on %s", localAddr)
-		
 		for {
 			localConn, err := localListener.Accept()
-			if err != nil { log.Printf("[QUIC] ... Session terminated: %v. Reconnecting...", err); conn.CloseWithError(0, ""); break }
+			if err != nil { log.Printf("[QUIC] ... Session terminated: %v. Reconnecting...", err); quicSession.CloseWithError(0, ""); break }
 			go func() {
-				stream, err := conn.OpenStreamSync(context.Background())
+				stream, err := quicSession.OpenStreamSync(context.Background())
 				if err != nil { log.Printf("[QUIC] Failed to open stream: %v", err); localConn.Close(); return }
 				defer stream.Close()
 				defer localConn.Close()
@@ -300,7 +298,6 @@ func runClientQUIC(serverAddr, secret, localAddr string) {
 		}
 	}
 }
-
 
 // --- توابع کمکی ---
 func startDaemon(cmd *exec.Command) {
