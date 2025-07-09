@@ -8,18 +8,10 @@ GITHUB_REPO="webwizards-team/phantom-tunnel"
 INSTALL_PATH="/usr/local/bin"
 EXECUTABLE_NAME="phantom-tunnel"
 
-# --- توابع کمکی برای خوانایی بهتر ---
-print_info() {
-    echo -e "\e[34m[INFO]\e[0m $1"
-}
-
-print_success() {
-    echo -e "\e[32m[SUCCESS]\e[0m $1"
-}
-
-print_error() {
-    echo -e "\e[31m[ERROR]\e[0m $1" >&2
-}
+# --- توابع کمکی ---
+print_info() { echo -e "\e[34m[INFO]\e[0m $1"; }
+print_success() { echo -e "\e[32m[SUCCESS]\e[0m $1"; }
+print_error() { echo -e "\e[31m[ERROR]\e[0m $1" >&2; }
 
 # --- شروع اسکریپت ---
 print_info "Starting Phantom Tunnel Installation..."
@@ -30,73 +22,50 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# ۲. بررسی و نصب وابستگی‌های اصلی (Go, Git, Curl)
+# ۲. نصب وابستگی‌های اصلی (بدون تغییر)
 print_info "Checking for core dependencies (Go, Git, curl)..."
 PACKAGE_MANAGER=""
-if command -v apt-get &> /dev/null; then
-  PACKAGE_MANAGER="apt-get"
-elif command -v yum &> /dev/null; then
-  PACKAGE_MANAGER="yum"
-else
-  print_error "Unsupported package manager. Please install dependencies manually."
-  exit 1
-fi
+if command -v apt-get &> /dev/null; then PACKAGE_MANAGER="apt-get"; elif command -v yum &> /dev/null; then PACKAGE_MANAGER="yum"; else print_error "Unsupported package manager."; exit 1; fi
+if ! command -v go &> /dev/null; then print_info "Go not found. Installing..."; if [ "$PACKAGE_MANAGER" = "apt-get" ]; then apt-get update && apt-get install -y golang-go; else yum install -y golang; fi; fi
+if ! command -v git &> /dev/null; then print_info "Git not found. Installing..."; if [ "$PACKAGE_MANAGER" = "apt-get" ]; then apt-get install -y git; else yum install -y git; fi; fi
+if ! command -v curl &> /dev/null; then print_info "curl not found. Installing..."; if [ "$PACKAGE_MANAGER" = "apt-get" ]; then apt-get install -y curl; else yum install -y curl; fi; fi
 
-# نصب Go
-if ! command -v go &> /dev/null; then
-  print_info "Go compiler not found. Installing..."
-  if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
-    apt-get update && apt-get install -y golang-go
-  else
-    yum install -y golang
-  fi
-fi
-
-# نصب Git
-if ! command -v git &> /dev/null; then
-  print_info "Git not found. Installing..."
-  if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
-    apt-get install -y git
-  else
-    yum install -y git
-  fi
-fi
-
-# نصب Curl
-if ! command -v curl &> /dev/null; then
-  print_info "curl not found. Installing..."
-  if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
-    apt-get install -y curl
-  else
-    yum install -y curl
-  fi
-fi
-
-# ۳. کامپایل کردن برنامه اصلی از سورس
+# ۳. کامپایل برنامه اصلی (بدون تغییر)
 print_info "Downloading and compiling the Phantom Tunnel application..."
-TMP_DIR=$(mktemp -d)
-trap 'rm -rf -- "$TMP_DIR"' EXIT # اطمینان از پاک شدن دایرکتوری موقت در انتها
-cd "$TMP_DIR"
-
+TMP_DIR=$(mktemp -d); trap 'rm -rf -- "$TMP_DIR"' EXIT; cd "$TMP_DIR"
 SOURCE_FILE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/phantom.go"
 curl -sSL -o "phantom.go" "$SOURCE_FILE_URL"
-
-export GOPROXY=direct # جلوگیری از خطای 403 در برخی سرورها
-go mod init phantom-tunnel &>/dev/null || true
-go get nhooyr.io/websocket &>/dev/null
-go get github.com/hashicorp/yamux &>/dev/null
-go mod tidy &>/dev/null
-
+export GOPROXY=direct; go mod init phantom-tunnel &>/dev/null || true
+go get nhooyr.io/websocket &>/dev/null; go get github.com/hashicorp/yamux &>/dev/null; go mod tidy &>/dev/null
 go build -ldflags="-s -w" -o "$EXECUTABLE_NAME" phantom.go
-mv "$EXECUTABLE_NAME" "$INSTALL_PATH/"
-chmod +x "$INSTALL_PATH/$EXECUTABLE_NAME"
+mv "$EXECUTABLE_NAME" "$INSTALL_PATH/"; chmod +x "$INSTALL_PATH/$EXECUTABLE_NAME"
 print_success "Phantom Tunnel application compiled and installed."
+
+# ۴. جدید: بهینه‌سازی سیستم‌عامل برای عملکرد بالا
+print_info "Optimizing system for high concurrency..."
+LIMITS_CONF="/etc/security/limits.conf"
+# بررسی اینکه آیا تنظیمات قبلاً اضافه شده‌اند یا خیر
+if ! grep -q "phantom-tunnel-optimizations" "$LIMITS_CONF"; then
+    print_info "Increasing file descriptor limits..."
+    # اضافه کردن تنظیمات به انتهای فایل
+    cat >> "$LIMITS_CONF" <<EOF
+
+# BEGIN: phantom-tunnel-optimizations
+* soft nofile 65536
+* hard nofile 65536
+# END: phantom-tunnel-optimizations
+EOF
+    print_success "System limits optimized."
+else
+    print_info "System limits already optimized. Skipping."
+fi
 
 # --- پایان ---
 echo ""
-print_success "Installation is complete!"
+print_success "Installation and optimization is complete!"
 echo "--------------------------------------------------"
-echo "To run the tunnel, simply type this command anywhere:"
+echo "To apply new system limits, please log out and log back in, or reboot the server."
+echo "Then, to run the tunnel, simply type this command anywhere:"
 echo "  $EXECUTABLE_NAME"
 echo "--------------------------------------------------"
 
