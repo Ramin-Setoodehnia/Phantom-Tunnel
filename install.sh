@@ -3,7 +3,7 @@
 set -e
 
 # --- پیکربندی ---
-GITHUB_REPO="phantom"
+GITHUB_REPO="webwizards-team/phantom-tunnel"
 INSTALL_PATH="/usr/local/bin"
 EXECUTABLE_NAME="phantom-tunnel"
 SOURCE_FILE_NAME="phantom.go"
@@ -33,7 +33,7 @@ if ! command -v curl &> /dev/null; then print_info "curl not found. Installing..
 # ۳. کامپایل برنامه اصلی
 print_info "Downloading and compiling the Phantom Tunnel application..."
 TMP_DIR=$(mktemp -d); trap 'rm -rf -- "$TMP_DIR"' EXIT; cd "$TMP_DIR"
-SOURCE_FILE_URL="https://bal.alfahost.sbs/${GITHUB_REPO}/${SOURCE_FILE_NAME}"
+SOURCE_FILE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/phantom.go"
 curl -sSL -o "${SOURCE_FILE_NAME}" "$SOURCE_FILE_URL"
 export GOPROXY=direct; go mod init phantom-tunnel &>/dev/null || true
 go get nhooyr.io/websocket &>/dev/null; go get github.com/hashicorp/yamux &>/dev/null; go mod tidy &>/dev/null
