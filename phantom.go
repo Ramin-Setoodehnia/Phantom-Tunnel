@@ -123,7 +123,7 @@ func main() {
 
 func showInteractiveMenu() {
 	fmt.Println("=======================================")
-	fmt.Println("   👻 Phantom Tunnel v6.2 (Status+Chart) ")
+	fmt.Println("   👻 Phantom Tunnel v2.2 (Live Monitor) ")
 	fmt.Println("   Make your traffic disappear.     ")
 	fmt.Println("=======================================")
 	reader := bufio.NewReader(os.Stdin)
