@@ -3,7 +3,7 @@
 set -e
 
 # --- پیکربندی ---
-GITHUB_REPO="webwizards-team/phantom-tunnel"
+GITHUB_REPO="webwizards-team/Phantom-Tunnel"
 INSTALL_PATH="/usr/local/bin"
 EXECUTABLE_NAME="phantom-tunnel"
 SOURCE_FILE_NAME="phantom.go"
