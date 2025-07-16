@@ -19,7 +19,7 @@
 
 
 ```bash
-bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/phantom-tunnel/main/install.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/install.sh)
 ```
 ---
 
