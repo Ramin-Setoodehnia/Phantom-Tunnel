@@ -89,5 +89,6 @@ systemctl restart "$SERVICE_NAME"
 sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     print_success "Phantom Panel service is now running!"
+fi
 
 exit 0
