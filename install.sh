@@ -4,7 +4,7 @@ set -e
 
 
 GITHUB_REPO="webwizards-team/Phantom-Tunnel"
-ASSET_NAME="phantom"
+ASSET_NAME="phantom-v3.0.0-ubuntu22"
 
 EXECUTABLE_NAME="phantom"
 INSTALL_PATH="/usr/local/bin"
