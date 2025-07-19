@@ -89,8 +89,5 @@ systemctl restart "$SERVICE_NAME"
 sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     print_success "Phantom Panel service is now running!"
-else
-    print_error "Failed to start the service. Please check logs with 'journalctl -u ${SERVICE_NAME}'"
-fi
 
 exit 0
