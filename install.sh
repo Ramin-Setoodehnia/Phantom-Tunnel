@@ -4,7 +4,7 @@ set -e
 
 
 GITHUB_REPO="webwizards-team/Phantom-Tunnel"
-ASSET_NAME="phantom-v3.0.0-ubuntu22"
+ASSET_NAME="phantom"
 
 EXECUTABLE_NAME="phantom"
 INSTALL_PATH="/usr/local/bin"
@@ -30,7 +30,7 @@ else
     print_error "Unsupported package manager. Please install 'curl' manually."
 fi
 
-DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${ASSET_NAME}"
+DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/3.0.0/${ASSET_NAME}"
 
 print_info "Downloading the latest version from: ${DOWNLOAD_URL}"
 TMP_DIR=$(mktemp -d); trap 'rm -rf -- "$TMP_DIR"' EXIT; cd "$TMP_DIR"
