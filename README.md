@@ -25,7 +25,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/Phantom-Tunne
 
 ## نحوه استفاده
 
-پس از نصب، کافیست دستور `phantom-tunnel` را در ترمینال خود وارد کنید.
+پس از نصب، کافیست دستور `phantom` را در ترمینال خود وارد کنید.
 
 ### ۱. راه‌اندازی سرور
 
