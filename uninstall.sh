@@ -1,83 +1,182 @@
-#!/bin/bash
+package main
 
-# This script must be run as root
-if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root. Please use 'sudo'." >&2
-  exit 1
-fi
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+)
 
-# --- Configuration ---
-EXECUTABLE_NAME="phantom"
-INSTALL_PATH="/usr/local/bin"
-SERVICE_NAME="phantom.service"
-WORKING_DIR="/etc/phantom"
-# ---------------------
+const licenseServerURL = "https://license.xst.cl/index.php"
 
-print_info() { echo -e "\e[34m[INFO]\e[0m $1"; }
-print_success() { echo -e "\e[32m[SUCCESS]\e[0m $1"; }
+type LicenseStatusResponse struct {
+	Status        string `json:"status"`
+	Reason        string `json:"reason,omitempty"`
+	ExpiryDate    string `json:"expiry_date,omitempty"`
+	DaysRemaining int    `json:"days_remaining,omitempty"`
+}
 
-echo "----------------------------------------------"
-echo "--- Uninstalling Phantom Tunnel Completely ---"
-echo "----------------------------------------------"
-echo "WARNING: This will remove the binary, all configuration files, and the systemd service."
+func getDeviceID() (string, error) {
+	id, err := os.ReadFile("/etc/machine-id")
+	if err != nil {
+		log.Printf("Could not read /etc/machine-id: %v. Using hostname as fallback.", err)
+		hostname, err_host := os.Hostname()
+		if err_host != nil {
+			return "", errors.New("could not get machine-id or hostname")
+		}
+		return hostname, nil
+	}
+	return strings.TrimSpace(string(id)), nil
+}
 
-# Use a command line argument to bypass confirmation for non-interactive execution
-if [ "$1" != "--no-confirm" ]; then
-    read -p "Are you sure you want to continue? [y/N]: " confirmation
-    if [[ "$confirmation" != "y" && "$confirmation" != "Y" ]]; then
-        echo "Uninstallation cancelled."
-        exit 0
-    fi
-fi
+func readLicenseKey() (string, error) {
+	key, found := getSetting("license_key")
+	if !found {
+		return "", errors.New("license key not found in database")
+	}
+	return key, nil
+}
 
-# 1. Stop and disable the systemd service
-print_info "Stopping and disabling the Phantom service..."
-if systemctl list-units --full -all | grep -Fq "${SERVICE_NAME}"; then
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
-        systemctl stop "$SERVICE_NAME"
-    fi
-    if systemctl is-enabled --quiet "$SERVICE_NAME"; then
-        systemctl disable "$SERVICE_NAME"
-    fi
-fi
+func writeLicenseKey(key string) error {
+	return setSetting("license_key", key)
+}
 
-# 2. Kill any remaining processes to be safe
-print_info "Killing any remaining 'phantom' processes..."
-pkill -f "$EXECUTABLE_NAME" || true
+func checkLicenseWithServer(key string) (*LicenseStatusResponse, error) {
+	deviceID, err := getDeviceID()
+	if err != nil {
+		return nil, errors.New("could not get device ID")
+	}
 
-# 3. Remove systemd service file
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
-if [ -f "$SERVICE_FILE" ]; then
-    print_info "Removing systemd service file..."
-    rm -f "$SERVICE_FILE"
-    systemctl daemon-reload
-fi
+	formData := url.Values{
+		"license_key": {key},
+		"device_id":   {deviceID},
+	}
 
-# 4. Remove application binary
-EXECUTABLE_PATH="${INSTALL_PATH}/${EXECUTABLE_NAME}"
-if [ -f "$EXECUTABLE_PATH" ]; then
-    print_info "Removing executable: ${EXECUTABLE_PATH}"
-    rm -f "$EXECUTABLE_PATH"
-fi
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.PostForm(licenseServerURL, formData)
+	if err != nil {
+		log.Printf("Internal license check error: %v", err)
+		return nil, errors.New("failed to contact license server")
+	}
+	defer resp.Body.Close()
 
-# 5. Remove working directory and all its contents
-if [ -d "$WORKING_DIR" ]; then
-    print_info "Removing working directory and all configurations: ${WORKING_DIR}"
-    rm -rf "$WORKING_DIR"
-fi
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Internal license check error: server returned non-200 status: %s", resp.Status)
+		return nil, errors.New("license server returned an invalid response")
+	}
 
-# 6. Remove temporary log and PID files
-print_info "Cleaning up temporary files..."
-rm -f /tmp/phantom.pid
-rm -f /tmp/phantom-panel.log
-rm -f /tmp/phantom-tunnel.log
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Internal license check error: failed to read response body: %v", err)
+		return nil, errors.New("failed to read response from license server")
+	}
 
-echo ""
-print_success "Phantom Tunnel has been completely uninstalled from your system."
+	var statusResp LicenseStatusResponse
+	if err := json.Unmarshal(body, &statusResp); err != nil {
+		log.Printf("Internal license check error: invalid JSON response: %s", string(body))
+		return nil, errors.New("invalid response format from license server")
+	}
 
-# Self-destruct if called from Go application
-if [ "$1" == "--no-confirm" ]; then
-    rm -f "$0"
-fi
+	return &statusResp, nil
+}
 
-exit 0
+func ValidateLicense() (bool, error) {
+	key, err := readLicenseKey()
+	if err != nil {
+		return false, err
+	}
+
+	status, err := checkLicenseWithServer(key)
+	if err != nil {
+		log.Printf("License check failed: %v", err)
+		return false, errors.New("could not connect to the license server for validation")
+	}
+
+	if status.Status != "valid" {
+		reason := status.Reason
+		if reason == "" {
+			reason = "Unknown reason"
+		}
+		return false, fmt.Errorf("license invalid: %s", reason)
+	}
+
+	return true, nil
+}
+
+func ActivateLicense(key string) error {
+	if key == "" {
+		return errors.New("license key cannot be empty")
+	}
+
+	status, err := checkLicenseWithServer(key)
+	if err != nil {
+		return fmt.Errorf("activation request failed: %w", err)
+	}
+
+	if status.Status != "valid" {
+		reason := status.Reason
+		if reason == "" {
+			reason = "Unknown reason"
+		}
+		return fmt.Errorf("activation failed: %s", reason)
+	}
+
+	if err := writeLicenseKey(key); err != nil {
+		return fmt.Errorf("failed to save license key file: %w", err)
+	}
+
+	return nil
+}
+
+func GetLicenseInfo() map[string]string {
+	info := map[string]string{
+		"status":  "Inactive",
+		"message": "No license key found. Please activate.",
+		"key":     "",
+	}
+
+	key, err := readLicenseKey()
+	if err != nil {
+		return info
+	}
+
+	if len(key) > 4 {
+		info["key"] = "••••" + key[len(key)-4:]
+	} else {
+		info["key"] = "••••"
+	}
+
+	status, err := checkLicenseWithServer(key)
+	if err != nil {
+		info["status"] = "Inactive"
+		info["message"] = "Error connecting to license server. Please check your internet connection."
+		return info
+	}
+
+	if status.Status == "valid" {
+		info["status"] = "Active"
+		message := "Your license is active and valid for this device."
+		if status.ExpiryDate != "" {
+			message += fmt.Sprintf(" Expires on: %s", status.ExpiryDate)
+		}
+		if status.DaysRemaining >= 0 {
+			message += fmt.Sprintf(" (%d days remaining).", status.DaysRemaining)
+		}
+		info["message"] = message
+
+	} else {
+		info["status"] = "Inactive"
+		if status.Reason != "" {
+			info["message"] = "License invalid: " + status.Reason
+		} else {
+			info["message"] = "License is invalid for an unknown reason."
+		}
+	}
+	return info
+}
