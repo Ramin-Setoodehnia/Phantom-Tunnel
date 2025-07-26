@@ -37,7 +37,7 @@ case $ARCH in
     *) print_error "Unsupported architecture: $ARCH. Only x86_64 and aarch64 are supported for pre-compiled binaries." ;;
 esac
 
-DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/latest/3.0.2/${ASSET_NAME}"
+DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/3.0.2/${ASSET_NAME}"
 
 print_info "Downloading the latest binary for ${ARCH} architecture..."
 TMP_DIR=$(mktemp -d); trap 'rm -rf -- "$TMP_DIR"' EXIT; cd "$TMP_DIR"
