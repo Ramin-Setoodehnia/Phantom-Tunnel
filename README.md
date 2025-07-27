@@ -1,3 +1,9 @@
+متوجه منظورت شدم. کاملا درست است. کاراکترهای < و > در گیت‌هاب ممکن است به عنوان تگ HTML تفسیر شوند و نمایش دستور را به هم بریزند.
+
+برای حل این مشکل، دستور نصب را در یک بلوک کد استاندارد و خوانا قرار می‌دهم که برای نمایش در گیت‌هاب بهینه‌سازی شده و به راحتی قابل کپی کردن است.
+
+این شما و این هم نسخه نهایی و اصلاح‌شده README.md برای گیت‌هاب:
+
 <div align="center">
 <img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/logo.png" alt="Phantom Tunnel Logo" width="150"/>
 <h1>Phantom Tunnel v3 👻</h1>
@@ -7,14 +13,14 @@
 
 <p align="center">✨ نگاهی به پنل مدیریت فانتوم ✨</p>
 <table align="center" style="border: none;">
-<tr>
-<td align="center">
+<tr style="border: none;">
+<td align="center" style="border: none; padding: 10px;">
 <p><strong>داشبورد اصلی و مدیریت تونل‌ها</strong></p>
-<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/dashboard.png" alt="Dashboard Screenshot" width="450"/>
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/dashboard.png" alt="Dashboard Screenshot" style="border-radius: 10px; max-width: 450px; width: 100%;"/>
 </td>
-<td align="center">
+<td align="center" style="border: none; padding: 10px;">
 <p><strong>مانیتورینگ زنده با نمودار ترافیک</strong></p>
-<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/monitor.png" alt="Monitor Screenshot" width="450"/>
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/monitor.png" alt="Monitor Screenshot" style="border-radius: 10px; max-width: 450px; width: 100%;"/>
 </td>
 </tr>
 </table>
@@ -54,21 +60,25 @@ Direct TCP Relay: یک رله مستقیم و ساده برای نیازهای �
 📈 آمار کلی سیستم:
 میزان مصرف CPU و RAM سرور خود را مستقیماً در داشبورد مشاهده کنید.
 
-💻 نصب: فقط یک دستور تا کنترل کامل
+💻 نصب
 
-این دستور را در ترمینال لینوکس خود کپی و اجرا کنید. اسکریپت نصب تمام کارها را به صورت خودکار انجام می‌دهد.
+نصب فانتوم بسیار ساده است. کافیست دستور زیر را کپی کرده و در ترمینال سرور لینوکس خود اجرا کنید.
 
-Generated bash
-bash <(curl -sSL https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/install.sh)
+<br>
 
+<div align="center">
+<pre><code>bash &lt;(curl -sSL https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/install.sh)</code></pre>
+</div>
 
-اسکریپت چه کاری انجام می‌دهد؟
+<br>
 
-فایل اجرایی فانتوم را دانلود و در مسیر /usr/local/bin/ قرار می‌دهد.
+اسکریپت نصب چه کاری انجام می‌دهد؟
 
-یک سرویس systemd ایجاد می‌کند تا پنل همیشه در پس‌زمینه فعال باشد.
+دانلود و نصب: فایل اجرایی فانتوم را دریافت کرده و در مسیر استاندارد /usr/local/bin/ قرار می‌دهد.
 
-پنل را برای اولین بار راه‌اندازی کرده و پورت و اطلاعات ورود پیش‌فرض را تنظیم می‌کند.
+ایجاد سرویس: یک سرویس systemd به نام phantom.service ایجاد می‌کند تا پنل به صورت خودکار با روشن شدن سرور اجرا شود و همیشه در پس‌زمینه فعال بماند.
+
+راه‌اندازی اولیه: پنل را برای اولین بار اجرا کرده و پورت و اطلاعات ورود پیش‌فرض را برای شما تنظیم می‌کند.
 
 💡 راهنمای شروع سریع
 
