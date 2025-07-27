@@ -1,5 +1,5 @@
 <div align="center">
-<img src="https://github.com/webwizards-team/Phantom-Tunnel/blob/9af7a20631ae4c1430f87e39d44836f79a523ed8/logo.png" alt="Phantom Tunnel Logo" width="150"/>
+<img src="https://github.com/webwizards-team/Phantom-Tunnel/blob/9af7a20631ae4c1430f87e39d44836f79a523ed8/logo.png" alt="Phantom Tunnel Logo" width="250"/>
 <h1>Phantom Tunnel v3 👻</h1>
 <p><strong>نسل جدید فانتوم: پنل مدیریت تونل تحت وب با پشتیبانی از QUIC و WSS.</strong></p>
 <p>یک پلتفرم کامل، خود-میزبان (Self-Hosted) و قدرتمند برای ساخت و مدیریت اتصالات امن، پنهان و پایدار.</p>
