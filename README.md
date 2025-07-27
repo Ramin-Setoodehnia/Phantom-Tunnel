@@ -8,11 +8,11 @@
 <p align="center">✨ نگاهی به پنل مدیریت فانتوم ✨</p>
 <div align="center">
 <p><strong>داشبورد اصلی و مدیریت تونل‌ها</strong></p>
-<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/photo/a2.png" alt="Dashboard Screenshot" style="border-radius: 10px; max-width: 650px; width: 100%;"/>
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/photo/a2.png" alt="Dashboard Screenshot" style="border-radius: 16px; max-width: 650px; width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.1);"/>
 <br/>
 <br/>
 <p><strong>مانیتورینگ زنده با نمودار ترافیک</strong></p>
-<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/photo/a1.png" alt="Monitor Screenshot" style="border-radius: 10px; max-width: 650px; width: 100%;"/>
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/photo/a1.png" alt="Monitor Screenshot" style="border-radius: 16px; max-width: 650px; width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.1);"/>
 </div>
 
 🚀 چرا فانتوم؟ قابلیت‌های کلیدی
