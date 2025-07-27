@@ -1,23 +1,19 @@
 <div align="center">
-<img src="https://github.com/webwizards-team/Phantom-Tunnel/blob/e017183c02818c39d81fdd809bc9b1cf054e0aff/photo/logo.png" alt="Phantom Tunnel Logo" width="150"/>
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/photo/logo.png" alt="Phantom Tunnel Logo" width="150"/>
 <h1>Phantom Tunnel v3 👻</h1>
 <p><strong>نسل جدید فانتوم: پنل مدیریت تونل تحت وب با پشتیبانی از QUIC و WSS.</strong></p>
 <p>یک پلتفرم کامل، خود-میزبان (Self-Hosted) و قدرتمند برای ساخت و مدیریت اتصالات امن، پنهان و پایدار.</p>
 </div>
 
 <p align="center">✨ نگاهی به پنل مدیریت فانتوم ✨</p>
-<table align="center" style="border: none;">
-<tr style="border: none;">
-<td align="center" style="border: none; padding: 10px;">
+<div align="center">
 <p><strong>داشبورد اصلی و مدیریت تونل‌ها</strong></p>
-<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/dashboard.png" alt="Dashboard Screenshot" style="border-radius: 10px; max-width: 450px; width: 100%;"/>
-</td>
-<td align="center" style="border: none; padding: 10px;">
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/dashboard.png" alt="Dashboard Screenshot" style="border-radius: 10px; max-width: 650px; width: 100%;"/>
+<br/>
+<br/>
 <p><strong>مانیتورینگ زنده با نمودار ترافیک</strong></p>
-<img src="https://github.com/webwizards-team/Phantom-Tunnel/blob/6277ae6bcba82f40fc103e2417a77899cbc08795/photo/a1.png" alt="Monitor Screenshot" style="border-radius: 10px; max-width: 450px; width: 100%;"/>
-</td>
-</tr>
-</table>
+<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/monitor.png" alt="Monitor Screenshot" style="border-radius: 10px; max-width: 650px; width: 100%;"/>
+</div>
 
 🚀 چرا فانتوم؟ قابلیت‌های کلیدی
 
