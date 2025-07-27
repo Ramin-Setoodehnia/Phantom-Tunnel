@@ -14,7 +14,7 @@
 </td>
 <td align="center" style="border: none; padding: 10px;">
 <p><strong>مانیتورینگ زنده با نمودار ترافیک</strong></p>
-<img src="https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/assets/monitor.png" alt="Monitor Screenshot" style="border-radius: 10px; max-width: 450px; width: 100%;"/>
+<img src="https://github.com/webwizards-team/Phantom-Tunnel/blob/6277ae6bcba82f40fc103e2417a77899cbc08795/photo/a1.png" alt="Monitor Screenshot" style="border-radius: 10px; max-width: 450px; width: 100%;"/>
 </td>
 </tr>
 </table>
