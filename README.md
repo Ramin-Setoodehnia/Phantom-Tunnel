@@ -57,7 +57,7 @@ Direct TCP Relay: یک رله مستقیم و ساده برای نیازهای �
 <br>
 
 <div align="center">
-<pre><code>bash &lt;(curl -sSL https://raw.githubusercontent.com/webwizards-team/Phantom-Tunnel/main/install.sh)</code></pre>
+<pre><code>bash &lt;(curl -sSL https://raw.githubusercontent.com/Ramin-Setoodehnia/Phantom-Tunnel/main/install.sh)</code></pre>
 </div>
 
 <br>
